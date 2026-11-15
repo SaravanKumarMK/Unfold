@@ -17,12 +17,12 @@ variable "account_id" {
 variable "github_owner" {
   description = "GitHub account or organisation that owns the repository."
   type        = string
-  default     = "udarshmarthala"
+  default     = "Saravankumar25"
 }
 
 variable "github_repo" {
   type    = string
-  default = "unfold"
+  default = "Unfold"
 }
 
 variable "default_branch" {

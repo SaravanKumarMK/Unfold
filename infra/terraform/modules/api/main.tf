@@ -23,6 +23,11 @@ resource "aws_lambda_function" "api" {
     log_group  = var.log_group_name
   }
 
+  # scripts/put_ssm_secrets.ps1 forces a cold start (so new secrets load) by changing the description
+  lifecycle {
+    ignore_changes = [description]
+  }
+
   environment {
     variables = merge(
       {

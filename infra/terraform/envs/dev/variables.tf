@@ -117,12 +117,12 @@ variable "log_retention_days" {
 
 variable "monthly_budget_usd" {
   type    = string
-  default = "10"
+  default = "20"
 }
 
 variable "daily_budget_usd" {
   type    = string
-  default = "3"
+  default = "5"
 }
 
 variable "allow_destroy_data" {

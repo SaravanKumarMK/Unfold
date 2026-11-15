@@ -10,3 +10,9 @@
 * Unsigned direct calls to the Function URL return 403 (signed-only in production).
 
 Not yet run: failure drill (kill a task, DLQ), cleanup/expiry check, Cost Explorer after 24-48 h, ZIP upload through the browser, PDF export, prod environment.
+
+## 2026-11-15: web tier moved to AWS (account 822491881190, us-east-1)
+
+* `unfold-roan.vercel.app` returned `DEPLOYMENT_NOT_FOUND` and no Vercel login exists on the operator machine; the API Lambda still answered `/health` 200 after 34 idle days and no task or service was running.
+* Registry applied first (web repository, lifecycle keeps 2 tagged images), then `envs/dev` with the web Lambda (`unfold-dev-web`, ADR 0018): 8 added, 0 destroyed. Dev apply is driven by an untracked `local.auto.tfvars` (values read back from the live state).
+* A 502 on the proxied session call (reserved `x-amzn-*` headers from the API's Function URL) was found by the first smoke call and fixed in `route.ts` (image `7e82624`).
