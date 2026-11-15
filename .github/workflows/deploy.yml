@@ -40,7 +40,7 @@ jobs:
           role-to-assume: ${{ vars.AWS_IMAGES_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
       - uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2
-      - name: build and push (tags are immutable: a re-run of the same commit skips an existing tag)
+      - name: build and push (a re-run of the same commit skips an existing tag)
         env:
           IMAGE: ${{ vars.ECR_REGISTRY }}/unfold-${{ inputs.env }}-${{ matrix.repository }}:${{ github.sha }}
           UPLOAD_BUCKET_HOST: unfold-${{ inputs.env }}-${{ vars.AWS_ACCOUNT_ID }}.s3.${{ vars.AWS_REGION }}.amazonaws.com
