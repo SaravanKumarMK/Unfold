@@ -46,8 +46,6 @@ terraform {
 # Values for variables without defaults. Dummies: nothing here reaches AWS.
 DUMMY_VARS = {
     "account_id": "123456789012",
-    "github_owner": "example-owner",
-    "github_repo": "example-repo",
     "web_origin": "https://unfold.example.com",
     "alert_emails": '["ops@example.com"]',
     "api_image_uri": "123456789012.dkr.ecr.us-east-1.amazonaws.com/unfold-api:test",
@@ -114,7 +112,7 @@ def plans(terraform_tree: Path, tmp_path_factory: pytest.TempPathFactory) -> dic
     """Plan every real root and fixture once (in parallel after a serial warm-up of the provider cache)."""
     jobs: dict[str, tuple[Path, dict[str, str]]] = {}
     for root in REAL_ROOTS:
-        jobs[root] = (terraform_tree / root, DUMMY_VARS if root.startswith("envs/") else {"account_id": "123456789012"})
+        jobs[root] = (terraform_tree / root, DUMMY_VARS if root.startswith("envs/") else {"account_id": "123456789012", "github_owner": "example-owner", "github_repo": "example-repo"})
     for fixture in sorted(p for p in FIXTURES.iterdir() if p.is_dir()):
         work = tmp_path_factory.mktemp(f"fx-{fixture.name}")
         shutil.copytree(fixture, work, dirs_exist_ok=True)
