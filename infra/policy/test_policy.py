@@ -46,6 +46,8 @@ terraform {
 # Values for variables without defaults. Dummies: nothing here reaches AWS.
 DUMMY_VARS = {
     "account_id": "123456789012",
+    "github_owner": "example-owner",
+    "github_repo": "example-repo",
     "web_origin": "https://unfold.example.com",
     "alert_emails": '["ops@example.com"]',
     "api_image_uri": "123456789012.dkr.ecr.us-east-1.amazonaws.com/unfold-api:test",
