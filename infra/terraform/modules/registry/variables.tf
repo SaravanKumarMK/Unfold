@@ -6,13 +6,13 @@ variable "name" {
 variable "repositories" {
   description = "Image targets of backend/Dockerfile (docker/backend.Dockerfile)."
   type        = list(string)
-  default     = ["api", "worker", "exporter"]
+  default     = ["api", "worker", "exporter", "web"]
 }
 
 variable "keep_tagged_images" {
-  description = "Tagged images kept per repository."
+  description = "Tagged images kept per repository: the live one and the one to roll back to. Stored images are the only recurring cost of an idle stack."
   type        = number
-  default     = 5
+  default     = 2
 }
 
 variable "force_delete" {

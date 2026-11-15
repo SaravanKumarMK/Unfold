@@ -1,5 +1,6 @@
-# Five runtime roles, one per principal, each scoped to the exact ARNs it needs (decision 4.6 / section 6 #10):
+# Six runtime roles, one per principal, each scoped to the exact ARNs it needs (decision 4.6 / section 6 #10):
 #   api            Lambda unfold-api
+#   web            Lambda unfold-web (Next.js proxy; one SSM parameter)
 #   worker_task    Fargate analysis task (what the application code may do)
 #   export_task    Fargate export task (Chromium over repository text: reads records, writes one export object)
 #   task_execution Fargate agent (image pull, log streams, injecting SSM secrets)
@@ -131,6 +132,35 @@ resource "aws_iam_role_policy" "api" {
   name   = "runtime"
   role   = aws_iam_role.api.id
   policy = data.aws_iam_policy_document.api.json
+}
+
+# --- web ----------------------------------------------------------------------------------------------------------
+
+resource "aws_iam_role" "web" {
+  name                 = "${var.name}-web"
+  assume_role_policy   = data.aws_iam_policy_document.lambda_trust.json
+  permissions_boundary = var.permissions_boundary_arn
+}
+
+# The Next.js proxy reads one secret (its HMAC signing key) at start and touches no data store.
+data "aws_iam_policy_document" "web" {
+  statement {
+    sid       = "Logs"
+    actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
+    resources = [local.lambda_log_groups]
+  }
+
+  statement {
+    sid       = "ReadProxySecret"
+    actions   = ["ssm:GetParameter"]
+    resources = ["${trimsuffix(var.ssm_parameter_arn_pattern, "*")}proxy_hmac_secret"]
+  }
+}
+
+resource "aws_iam_role_policy" "web" {
+  name   = "runtime"
+  role   = aws_iam_role.web.id
+  policy = data.aws_iam_policy_document.web.json
 }
 
 # --- worker task ------------------------------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-# The API: one container-image Lambda behind a Function URL with response streaming (decision 4.1). It is not in a
+# Used twice per environment: the API (FastAPI) and the web tier (Next.js), each one container-image Lambda behind a Function URL with response streaming (decision 4.1). It is not in a
 # VPC (streaming Function URLs and cold start both want that). Edge protection is application quota plus reserved
 # concurrency; the Vercel proxy authenticates itself with an HMAC header, never a static AWS key.
 
@@ -21,6 +21,11 @@ resource "aws_lambda_function" "api" {
   logging_config {
     log_format = "Text"
     log_group  = var.log_group_name
+  }
+
+  # scripts/put_ssm_secrets.ps1 forces a cold start (so new secrets load) by changing the description
+  lifecycle {
+    ignore_changes = [description]
   }
 
   environment {

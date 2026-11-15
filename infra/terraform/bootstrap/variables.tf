@@ -15,14 +15,12 @@ variable "account_id" {
 }
 
 variable "github_owner" {
-  description = "GitHub account or organisation that owns the repository."
+  description = "GitHub account or organisation that owns the repository. Required: it is the OIDC trust, so it is never defaulted."
   type        = string
-  default     = "udarshmarthala"
 }
 
 variable "github_repo" {
-  type    = string
-  default = "unfold"
+  type = string
 }
 
 variable "default_branch" {

@@ -107,3 +107,27 @@ are free tier. The token profile of the engine is now measured (`performance.md`
 | Public IPv4 per task | none needed beyond task lifetime; NAT would cost $32.85 per month fixed |
 | ECR | lifecycle keeps 5 tags; compressed size is lower than the uncompressed figure used |
 | Logs | 14-day retention, JSON lines, no debug in production |
+
+## 6. Measured idle cost (Cost Explorer, 2026-11-15)
+
+The dev stack has been deployed since 2026-10-13 and was idle most of the time. Cost Explorer for **region
+us-east-1 only** (the account also holds an unrelated stack in us-west-2, about $56 a month, that is not Unfold's and
+was not touched):
+
+| Month | DynamoDB | ECR | ECS (Fargate) | S3 | VPC | Total |
+|---|---|---|---|---|---|---|
+| 2026-10 (the 7 min 36 s analysis of `psf/requests` and its smoke) | 0.0053 | 0.178 | not billed to us-east-1 in the report | 0.011 | 0 | $0.19 |
+| 2026-11-01 to 11-15 (idle) | 0.0027 | 0.137 | 0.012 | 0.004 | 0.0004 | $0.16 |
+
+Idle days bill **$0.0097 per day** (about $0.29 a month). It is **all ECR image storage**: Lambda, SQS, EventBridge
+Scheduler, DynamoDB on demand, CloudWatch alarms (4, inside the 10 free), SSM standard parameters and the two budgets
+are inside their always-free allowances or round to zero. This matches the estimate in section 3 ($0.30). Two things
+changed on 2026-11-15: the new web Lambda image adds about 0.17 GB (about $0.017 a month) and the lifecycle now keeps
+2 tagged images per repository instead of 5, which roughly halves the stored images once the older tags age out
+(the exporter image alone is about 0.95 GB compressed).
+
+Still billed while nobody uses it: ECR storage, CloudWatch log storage (a few KB, 14-day retention), S3 objects until
+the 4-day expiry, public IPv4 only while a task runs. Not billed: compute, NAT, load balancer, database, secret store.
+
+Not measured: the cost of an analysis on this account (Fargate usage did not appear for us-east-1 in October's report;
+use the estimate in section 3 until a month with jobs exists) and Gemini spend, which AWS never sees.

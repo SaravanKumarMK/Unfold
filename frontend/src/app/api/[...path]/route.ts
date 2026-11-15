@@ -30,6 +30,16 @@ const HOP_BY_HOP = new Set([
   "set-cookie",
 ]);
 
+/**
+ * Hop-by-hop headers, plus `x-amzn-*` and `date`: when this server runs on a Lambda Function URL, the API's own
+ * Function URL answers with `x-amzn-remapped-*` / `x-amzn-requestid` / `date`, and returning those from a streaming
+ * Function URL is a 502 (the body arrives, the status line is wrong). Inbound, `x-amzn-*` is adapter context.
+ */
+function forwardable(name: string): boolean {
+  const key = name.toLowerCase();
+  return !HOP_BY_HOP.has(key) && key !== "date" && !key.startsWith("x-amzn-");
+}
+
 function upstreamOrigin(): string {
   return (process.env.API_INTERNAL_URL || "http://localhost:8000").replace(/\/+$/, "");
 }
@@ -48,7 +58,7 @@ async function proxy(request: NextRequest): Promise<Response> {
 
   const headers = new Headers();
   request.headers.forEach((value, key) => {
-    if (!HOP_BY_HOP.has(key.toLowerCase())) headers.set(key, value);
+    if (forwardable(key)) headers.set(key, value);
   });
   headers.set("accept-encoding", "identity");
   headers.set("x-forwarded-host", incoming.host);
@@ -84,7 +94,7 @@ async function proxy(request: NextRequest): Promise<Response> {
 
   const out = new Headers();
   upstream.headers.forEach((value, key) => {
-    if (!HOP_BY_HOP.has(key.toLowerCase())) out.set(key, value);
+    if (forwardable(key)) out.set(key, value);
   });
   for (const cookie of upstream.headers.getSetCookie()) out.append("set-cookie", cookie);
 

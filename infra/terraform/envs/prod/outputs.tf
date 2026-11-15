@@ -1,6 +1,11 @@
 output "api_url" {
-  description = "Function URL: set as API_INTERNAL_URL in the Vercel project."
+  description = "API Function URL (the web Lambda's API_INTERNAL_URL)."
   value       = module.api.function_url
+}
+
+output "web_url" {
+  description = "The site: web Lambda Function URL. Use it (no trailing slash) as web_origin."
+  value       = module.web.function_url
 }
 
 output "bucket_name" {
@@ -16,7 +21,7 @@ output "queue_url" {
 }
 
 output "ecr_repository_urls" {
-  description = "Push targets for CI (api, worker, exporter)."
+  description = "Push targets for CI (api, worker, exporter, web)."
   value       = module.registry.repository_urls
 }
 

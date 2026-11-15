@@ -43,3 +43,25 @@ Secrets are SSM SecureString parameters under `/unfold/<env>/`: `gemini_api_key_
 ## Idle check
 
 No running ECS tasks, no NAT gateway, no load balancer, no provisioned Lambda concurrency. Cost Explorer after 24 to 48 hours against `cost.md`.
+
+## Web tier on Lambda (ADR 0018)
+
+**Deploy / update** (what was done on 2026-11-15, from the operator machine; `deploy.yml` does the same from CI):
+
+1. `docker build --provenance=false --sbom=false --platform linux/amd64 -f docker/web.Dockerfile --build-arg UPLOAD_BUCKET_HOST=<bucket>.s3.<region>.amazonaws.com -t <ecr>/unfold-<env>-web:<git sha> frontend`, then `docker push`. (Lambda cannot run an OCI index, hence no attestations.)
+2. `terraform apply` of `envs/<env>` with `web_image_uri` set. The first time, `web_origin` is a placeholder; apply again with the `web_url` output (no trailing slash) so S3 CORS and `PUBLIC_WEB_ORIGIN` match.
+3. Smoke: `GET <web_url>/` 200, `POST <web_url>/api/v1/sessions` 201 with a `Set-Cookie`.
+
+**Rollback**: apply with the previous `web_image_uri` tag (2 tags are kept). The Vercel path is no longer wired; the
+old `unfold-roan.vercel.app` deployment no longer exists.
+
+**Decommission Vercel**: nothing in AWS refers to it; delete the Vercel project and its `API_INTERNAL_URL`,
+`PROXY_HMAC_SECRET`, `UPLOAD_BUCKET_HOST`, `PUBLIC_WEB_ORIGIN` variables if the project still exists in the dashboard.
+
+**Decommission an environment's AWS resources** (not done; needs the owner): set `allow_destroy_data=true` and apply,
+then `terraform destroy`; remove `/unfold/<env>/*` parameters; run `terraform destroy` in `bootstrap` last.
+
+**Provider credit**: if guide generation fails with `PROVIDER_RATE_LIMITED` or `GENERATION_FAILED` while
+`llm.rate_limited` shows every key, test a key directly (`generateContent` with `x-goog-api-key`). On 2026-11-15
+`gemini_api_key_1..3` answered 402 "prepayment credits are depleted" and `_4` 401: top up or replace them in SSM
+(`scripts/put_ssm_secrets.ps1`); no redeploy is needed beyond the cold start the script forces.

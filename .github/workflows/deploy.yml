@@ -1,0 +1,93 @@
+name: deploy
+
+# Manual, from main only: build the four images tagged with the commit SHA, then `terraform apply` the environment
+# with those tags. AWS access is OIDC (roles from infra/terraform/bootstrap); no keys are stored anywhere.
+# Rollback = run this workflow again from the previous commit (its images are still in ECR: 2 tags are kept).
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: Environment (a GitHub Environment of the same name gates the apply)
+        type: choice
+        options: [dev, prod]
+        default: dev
+
+concurrency:
+  group: deploy-${{ inputs.env }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  images:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions: { id-token: write, contents: read }
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { target: api-lambda, repository: api, dockerfile: docker/backend.Dockerfile, context: . }
+          - { target: worker, repository: worker, dockerfile: docker/backend.Dockerfile, context: . }
+          - { target: exporter, repository: exporter, dockerfile: docker/backend.Dockerfile, context: . }
+          - { target: web-lambda, repository: web, dockerfile: docker/web.Dockerfile, context: frontend }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ vars.AWS_IMAGES_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2
+      - name: build and push (a re-run of the same commit skips an existing tag)
+        env:
+          IMAGE: ${{ vars.ECR_REGISTRY }}/unfold-${{ inputs.env }}-${{ matrix.repository }}:${{ github.sha }}
+          UPLOAD_BUCKET_HOST: unfold-${{ inputs.env }}-${{ vars.AWS_ACCOUNT_ID }}.s3.${{ vars.AWS_REGION }}.amazonaws.com
+        run: |
+          set -euo pipefail
+          if docker manifest inspect "$IMAGE" >/dev/null 2>&1; then echo "$IMAGE exists"; exit 0; fi
+          # Lambda rejects an OCI index, so no provenance or SBOM attestation
+          docker build --provenance=false --sbom=false --platform linux/amd64 \
+            -f "${{ matrix.dockerfile }}" --target "${{ matrix.target }}" \
+            --build-arg UPLOAD_BUCKET_HOST="$UPLOAD_BUCKET_HOST" -t "$IMAGE" "${{ matrix.context }}"
+          docker push "$IMAGE"
+
+  apply:
+    needs: images
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.env }}
+    permissions: { id-token: write, contents: read }
+    env:
+      REGISTRY: ${{ vars.ECR_REGISTRY }}/unfold-${{ inputs.env }}
+      TF_VAR_account_id: ${{ vars.AWS_ACCOUNT_ID }}
+      TF_VAR_region: ${{ vars.AWS_REGION }}
+      TF_VAR_web_origin: ${{ vars.WEB_ORIGIN }}
+      TF_VAR_alert_emails: ${{ vars.ALERT_EMAILS_JSON }}
+      TF_VAR_api_image_uri: ${{ vars.ECR_REGISTRY }}/unfold-${{ inputs.env }}-api:${{ github.sha }}
+      TF_VAR_worker_image_uri: ${{ vars.ECR_REGISTRY }}/unfold-${{ inputs.env }}-worker:${{ github.sha }}
+      TF_VAR_exporter_image_uri: ${{ vars.ECR_REGISTRY }}/unfold-${{ inputs.env }}-exporter:${{ github.sha }}
+      TF_VAR_web_image_uri: ${{ vars.ECR_REGISTRY }}/unfold-${{ inputs.env }}-web:${{ github.sha }}
+      TF_VAR_api_memory_mb: ${{ vars.API_MEMORY_MB || '3538' }}
+      TF_VAR_api_reserved_concurrency: ${{ vars.API_RESERVED_CONCURRENCY || '5' }}
+      TF_VAR_worker_secret_names: ${{ vars.WORKER_SECRET_NAMES_JSON || '["gemini_api_key_1"]' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: 1.9.8
+          terraform_wrapper: false
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: terraform apply
+        working-directory: infra/terraform/envs/${{ inputs.env }}
+        run: |
+          terraform init -input=false -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="region=${{ vars.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ vars.TF_LOCK_TABLE }}" -backend-config="encrypt=true"
+          terraform plan -input=false -out=deploy.tfplan
+          terraform apply -input=false deploy.tfplan
+      - name: record what is deployed
+        run: echo "deployed ${{ github.sha }} to ${{ inputs.env }}" >> "$GITHUB_STEP_SUMMARY"
