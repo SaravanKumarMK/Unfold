@@ -43,9 +43,12 @@ jobs:
       - name: build and push (a re-run of the same commit skips an existing tag)
         env:
           IMAGE: ${{ vars.ECR_REGISTRY }}/unfold-${{ inputs.env }}-${{ matrix.repository }}:${{ github.sha }}
-          UPLOAD_BUCKET_HOST: unfold-${{ inputs.env }}-${{ vars.AWS_ACCOUNT_ID }}.s3.${{ vars.AWS_REGION }}.amazonaws.com
+          BUCKET: unfold-${{ inputs.env }}-${{ vars.AWS_ACCOUNT_ID }}
+          REGION: ${{ vars.AWS_REGION }}
         run: |
           set -euo pipefail
+          # boto presigns us-east-1 buckets on the global host; the CSP must name exactly the host the browser POSTs to
+          if [ "$REGION" = us-east-1 ]; then UPLOAD_BUCKET_HOST="$BUCKET.s3.amazonaws.com"; else UPLOAD_BUCKET_HOST="$BUCKET.s3.$REGION.amazonaws.com"; fi
           if docker manifest inspect "$IMAGE" >/dev/null 2>&1; then echo "$IMAGE exists"; exit 0; fi
           # Lambda rejects an OCI index, so no provenance or SBOM attestation
           docker build --provenance=false --sbom=false --platform linux/amd64 \

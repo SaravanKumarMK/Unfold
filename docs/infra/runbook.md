@@ -48,7 +48,7 @@ No running ECS tasks, no NAT gateway, no load balancer, no provisioned Lambda co
 
 **Deploy / update** (what was done on 2026-11-15, from the operator machine; `deploy.yml` does the same from CI):
 
-1. `docker build --provenance=false --sbom=false --platform linux/amd64 -f docker/web.Dockerfile --build-arg UPLOAD_BUCKET_HOST=<bucket>.s3.<region>.amazonaws.com -t <ecr>/unfold-<env>-web:<git sha> frontend`, then `docker push`. (Lambda cannot run an OCI index, hence no attestations.)
+1. `docker build --provenance=false --sbom=false --platform linux/amd64 -f docker/web.Dockerfile --build-arg UPLOAD_BUCKET_HOST=<bucket>.s3.amazonaws.com (us-east-1; elsewhere <bucket>.s3.<region>.amazonaws.com: it must equal the host in the presigned URL) -t <ecr>/unfold-<env>-web:<git sha> frontend`, then `docker push`. (Lambda cannot run an OCI index, hence no attestations.)
 2. `terraform apply` of `envs/<env>` with `web_image_uri` set. The first time, `web_origin` is a placeholder; apply again with the `web_url` output (no trailing slash) so S3 CORS and `PUBLIC_WEB_ORIGIN` match.
 3. Smoke: `GET <web_url>/` 200, `POST <web_url>/api/v1/sessions` 201 with a `Set-Cookie`.
 
