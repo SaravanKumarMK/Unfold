@@ -19,7 +19,7 @@ locals {
 
   worker_log_group = "/unfold/${local.env}/worker"
   boundary_arn     = var.permissions_boundary_arn != "" ? var.permissions_boundary_arn : "arn:aws:iam::${var.account_id}:policy/unfold-runtime-boundary"
-  function_names   = ["${local.name}-api", "${local.name}-dispatcher", "${local.name}-task_stopped", "${local.name}-sweeper"]
+  function_names   = ["${local.name}-api", "${local.name}-dispatcher", "${local.name}-task_stopped", "${local.name}-sweeper", "${local.name}-web"]
   log_groups       = concat([for f in local.function_names : "/aws/lambda/${f}"], [local.worker_log_group])
   task_families    = ["${local.name}-analysis", "${local.name}-export"]
 
@@ -184,6 +184,32 @@ module "api" {
   timeout_seconds      = var.api_timeout_seconds
   reserved_concurrency = var.api_reserved_concurrency
   environment          = local.app_env
+
+  depends_on = [module.observability]
+}
+
+# The web tier: the Next.js server (session-cookie proxy to the API) as a second Function-URL Lambda, same module as the
+# API. It replaces the Vercel project (deleted upstream, ADR 0018). Its only secret, the proxy signing key, is read
+# from SSM when the server starts. It does not depend on the API's origin settings, so PUBLIC_WEB_ORIGIN
+# (var.web_origin) is set from its URL on a second apply.
+module "web" {
+  source = "../../modules/api"
+
+  function_name        = "${local.name}-web"
+  role_arn             = module.iam.web_role_arn
+  image_uri            = var.web_image_uri
+  log_group_name       = "/aws/lambda/${local.name}-web"
+  memory_mb            = var.web_memory_mb
+  timeout_seconds      = var.api_timeout_seconds # a proxied chat stream lives as long as the API call
+  ephemeral_storage_mb = 512
+  reserved_concurrency = var.api_reserved_concurrency
+  environment = {
+    AWS_LWA_PORT                 = "3000"
+    AWS_LWA_READINESS_CHECK_PATH = "/"
+    API_INTERNAL_URL             = module.api.function_url
+    SSM_PATH_PREFIX              = module.secrets.path_prefix
+    PUBLIC_WEB_ORIGIN            = var.web_origin
+  }
 
   depends_on = [module.observability]
 }

@@ -21,7 +21,7 @@ variable "permissions_boundary_arn" {
 }
 
 variable "web_origin" {
-  description = "Origin of the Vercel site, e.g. https://unfold.vercel.app (CORS for uploads, PUBLIC_WEB_ORIGIN)."
+  description = "Origin of the web tier: the web Lambda Function URL without a trailing slash (S3 CORS for uploads, PUBLIC_WEB_ORIGIN). Known only after the first apply, so apply once with a placeholder https:// origin, then again with the web_url output."
   type        = string
 
   validation {
@@ -39,6 +39,11 @@ variable "alert_emails" {
 
 variable "api_image_uri" {
   description = "ECR image URI (tag or digest) of the api target."
+  type        = string
+}
+
+variable "web_image_uri" {
+  description = "ECR image URI of the web-lambda target (the Next.js server)."
   type        = string
 }
 
@@ -79,6 +84,12 @@ variable "analysis_memory" {
 variable "api_memory_mb" {
   type    = number
   default = 3538
+}
+
+variable "web_memory_mb" {
+  description = "Next.js server memory; it only renders pages and proxies bytes."
+  type        = number
+  default     = 1024
 }
 
 variable "api_timeout_seconds" {

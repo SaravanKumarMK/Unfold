@@ -2,6 +2,10 @@ output "api_role_arn" {
   value = aws_iam_role.api.arn
 }
 
+output "web_role_arn" {
+  value = aws_iam_role.web.arn
+}
+
 output "worker_task_role_arn" {
   value = aws_iam_role.worker_task.arn
 }

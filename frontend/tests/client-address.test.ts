@@ -41,3 +41,27 @@ describe("clientAddress", () => {
     expect(clientAddress(req({}))).toBeNull();
   });
 });
+
+describe("clientAddress on a Lambda Function URL", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  const ctx = (ip: unknown) => JSON.stringify({ http: { sourceIp: ip, method: "GET" } });
+
+  it("uses the adapter's source IP, never the forgeable X-Forwarded-For", () => {
+    vi.stubEnv("TRUST_LAMBDA_SOURCE_IP", "1");
+    vi.stubEnv("TRUST_FORWARDED_FOR", "1");
+    expect(clientAddress(req({ "x-amzn-request-context": ctx("203.0.113.9"), "x-forwarded-for": "6.6.6.6" }))).toBe("203.0.113.9");
+    expect(clientAddress(req({ "x-amzn-request-context": ctx("2401:4900:9503:8aae::1") }))).toBe("2401:4900:9503:8aae::1");
+  });
+
+  it("is off without the opt-in", () => {
+    expect(clientAddress(req({ "x-amzn-request-context": ctx("203.0.113.9") }))).toBeNull();
+  });
+
+  it("returns null for a missing, malformed or non-IP context", () => {
+    vi.stubEnv("TRUST_LAMBDA_SOURCE_IP", "1");
+    expect(clientAddress(req({}))).toBeNull();
+    expect(clientAddress(req({ "x-amzn-request-context": "{not json" }))).toBeNull();
+    expect(clientAddress(req({ "x-amzn-request-context": ctx("<script>") }))).toBeNull();
+    expect(clientAddress(req({ "x-amzn-request-context": ctx(42) }))).toBeNull();
+  });
+});

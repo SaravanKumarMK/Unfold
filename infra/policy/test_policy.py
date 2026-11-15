@@ -49,6 +49,7 @@ DUMMY_VARS = {
     "web_origin": "https://unfold.example.com",
     "alert_emails": '["ops@example.com"]',
     "api_image_uri": "123456789012.dkr.ecr.us-east-1.amazonaws.com/unfold-api:test",
+    "web_image_uri": "123456789012.dkr.ecr.us-east-1.amazonaws.com/unfold-web:test",
     "worker_image_uri": "123456789012.dkr.ecr.us-east-1.amazonaws.com/unfold-worker:test",
     "exporter_image_uri": "123456789012.dkr.ecr.us-east-1.amazonaws.com/unfold-exporter:test",
 }
@@ -148,11 +149,11 @@ def test_environments_have_the_expected_shape(plans: dict[str, Plan], env: str) 
     assert types.count("aws_cloudwatch_metric_alarm") == 4
     assert types.count("aws_cloudwatch_log_metric_filter") == 2
     fn_url = [r for r in plan.resources if r.type == "aws_lambda_function_url"]
-    assert len(fn_url) == 1 and fn_url[0].values["invoke_mode"] == "RESPONSE_STREAM"
+    assert len(fn_url) == 2 and all(r.values["invoke_mode"] == "RESPONSE_STREAM" for r in fn_url)  # api + web
     assert {r.name for r in plan.resources if r.type == "aws_lambda_function"} == {"api", "this"}
-    assert len([r for r in plan.resources if r.type == "aws_lambda_function"]) == 4  # api + 3 control handlers
+    assert len([r for r in plan.resources if r.type == "aws_lambda_function"]) == 5  # api, web + 3 control handlers
     assert any(r.type == "aws_sqs_queue" and r.values.get("name", "").endswith("-jobs") for r in plan.resources)
-    assert len([r for r in plan.resources if r.type == "aws_iam_role"]) == 6  # api, worker task, export task, execution, dispatcher, scheduler
+    assert len([r for r in plan.resources if r.type == "aws_iam_role"]) == 7  # api, web, worker task, export task, execution, dispatcher, scheduler
     table = next(r for r in plan.resources if r.type == "aws_dynamodb_table")
     assert table.values["deletion_protection_enabled"] is True
     assert env.split("/")[-1] in table.values["name"]

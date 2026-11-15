@@ -1,4 +1,4 @@
-# The API: one container-image Lambda behind a Function URL with response streaming (decision 4.1). It is not in a
+# Used twice per environment: the API (FastAPI) and the web tier (Next.js), each one container-image Lambda behind a Function URL with response streaming (decision 4.1). It is not in a
 # VPC (streaming Function URLs and cold start both want that). Edge protection is application quota plus reserved
 # concurrency; the Vercel proxy authenticates itself with an HMAC header, never a static AWS key.
 
