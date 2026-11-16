@@ -52,8 +52,8 @@ No running ECS tasks, no NAT gateway, no load balancer, no provisioned Lambda co
 2. `terraform apply` of `envs/<env>` with `web_image_uri` set. The first time, `web_origin` is a placeholder; apply again with the `web_url` output (no trailing slash) so S3 CORS and `PUBLIC_WEB_ORIGIN` match.
 3. Smoke: `GET <web_url>/` 200, `POST <web_url>/api/v1/sessions` 201 with a `Set-Cookie`.
 
-**Rollback**: apply with the previous `web_image_uri` tag (2 tags are kept). The Vercel path is no longer wired; the
-old `unfold-roan.vercel.app` deployment no longer exists.
+**Rollback**: apply with the previous `web_image_uri` tag (2 tags are kept). The Vercel front end `unfold-the-project.vercel.app` is the primary and
+needs `UPLOAD_BUCKET_HOST` set to the presigned host (`<bucket>.s3.amazonaws.com` in us-east-1) for browser ZIP uploads.
 
 **Decommission Vercel**: nothing in AWS refers to it; delete the Vercel project and its `API_INTERNAL_URL`,
 `PROXY_HMAC_SECRET`, `UPLOAD_BUCKET_HOST`, `PUBLIC_WEB_ORIGIN` variables if the project still exists in the dashboard.

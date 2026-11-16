@@ -13,7 +13,7 @@ Not yet run: failure drill (kill a task, DLQ), cleanup/expiry check, Cost Explor
 
 ## 2026-11-15: web tier moved to AWS (account 822491881190, us-east-1)
 
-* `unfold-roan.vercel.app` returned `DEPLOYMENT_NOT_FOUND` and no Vercel login exists on the operator machine; the API Lambda still answered `/health` 200 after 34 idle days and no task or service was running.
+* Correction (2026-11-16): the live Vercel app is `unfold-the-project.vercel.app` and works; the `unfold-roan` URL tested here was the wrong one. `web_origin` was restored to the Vercel origin on dev (S3 CORS, API `PUBLIC_WEB_ORIGIN`). Original note: `unfold-roan.vercel.app` returned `DEPLOYMENT_NOT_FOUND`; the API Lambda still answered `/health` 200 after 34 idle days and no task or service was running.
 * Registry applied first (web repository, lifecycle keeps 2 tagged images), then `envs/dev` with the web Lambda (`unfold-dev-web`, ADR 0018): 8 added, 0 destroyed. Dev apply is driven by an untracked `local.auto.tfvars` (values read back from the live state).
 * A 502 on the proxied session call (reserved `x-amzn-*` headers from the API's Function URL) was found by the first smoke call and fixed in `route.ts` (image `7e82624`).
 * Second apply: `web_origin` = the web Lambda URL (S3 CORS, `PUBLIC_WEB_ORIGIN`). Web image `3e3fa68` (CSP upload host = the global S3 host the API presigns in us-east-1; found while testing the presigned flow). API, worker, exporter images unchanged (`7d3d0bb`; no backend change).

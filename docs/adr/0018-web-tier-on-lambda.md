@@ -5,9 +5,9 @@ Status: accepted (2026-11-15)
 ## Context
 
 ADR 0010 to 0016 put the API, workers and data on scale-to-zero AWS services and left the Next.js site on Vercel.
-On 2026-11-15 `unfold-roan.vercel.app` answered `DEPLOYMENT_NOT_FOUND` and no Vercel credential was available to
-redeploy it, so the product had no reachable front end while the AWS side (checked the same day: health 200 after
-34 idle days) was healthy. A second hosting vendor with its own login, secrets copy and quota was also the one part
+The live Vercel front end is `unfold-the-project.vercel.app` (healthy; found only after a wrong first probe of
+`unfold-roan.vercel.app`, which answered `DEPLOYMENT_NOT_FOUND`). The Lambda web tier is therefore an optional second
+front end, not a replacement: `web_origin` names whichever one is primary, and the dev stack now points at Vercel. A second hosting vendor with its own login, secrets copy and quota was also the one part
 of the stack outside Terraform, the policy tests and the cost model.
 
 ## Decision
