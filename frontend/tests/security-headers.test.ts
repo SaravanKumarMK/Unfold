@@ -31,6 +31,14 @@ describe("next.config headers", () => {
     expect(src).not.toContain("*.amazonaws.com");
   });
 
+  it("also allows the global S3 host when the regional host is us-east-1", async () => {
+    vi.stubEnv("UPLOAD_BUCKET_HOST", "unfold-up.s3.us-east-1.amazonaws.com");
+    vi.resetModules();
+    const src = await connectSrc();
+    expect(src).toContain("https://unfold-up.s3.us-east-1.amazonaws.com");
+    expect(src).toContain("https://unfold-up.s3.amazonaws.com");
+  });
+
   it("falls back to the wildcard outside production, and to no S3 origin in production", async () => {
     vi.stubEnv("UPLOAD_BUCKET_HOST", "");
     vi.resetModules();

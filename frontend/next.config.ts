@@ -22,7 +22,14 @@ const uploadHost = (process.env.UPLOAD_BUCKET_HOST ?? "").trim();
 if (uploadHost && !/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?\.amazonaws\.com(\.cn)?$/i.test(uploadHost)) {
   throw new Error("UPLOAD_BUCKET_HOST must be a bare *.amazonaws.com host name (no scheme, path or spaces)");
 }
-const uploadOrigin = uploadHost ? `https://${uploadHost}` : isDev ? "https://*.amazonaws.com" : "";
+// us-east-1 presigns on the global host (`<bucket>.s3.amazonaws.com`), every other region on the regional one, so a
+// regional us-east-1 value also allows the global form of the same bucket.
+const globalHost = uploadHost.replace(/\.s3\.us-east-1\.amazonaws\.com$/i, ".s3.amazonaws.com");
+const uploadOrigin = uploadHost
+  ? [...new Set([uploadHost, globalHost])].map((h) => `https://${h}`).join(" ")
+  : isDev
+    ? "https://*.amazonaws.com"
+    : "";
 
 /**
  * Content-Security-Policy (audit S-6). Next injects inline bootstrap scripts, so `script-src` keeps
